@@ -145,68 +145,70 @@ jobs:
 
           Path("proficiency-scores.json").write_text(json.dumps(scores, indent=2))
 
-          report = f"""# Proficiency Report Card
+          strong_tools = [t for t, d in sorted(scores["tools"].items(), key=lambda x: x[1]["proficiency"], reverse=True) if d["proficiency"] >= 60]
+          developing_tools = [t for t, d in sorted(scores["tools"].items(), key=lambda x: x[1]["proficiency"], reverse=True) if 40 <= d["proficiency"] < 60]
+          emerging_tools = [t for t, d in sorted(scores["tools"].items(), key=lambda x: x[1]["proficiency"], reverse=True) if d["proficiency"] < 40]
 
-**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  
-**Triggered by:** Push to `{triggered_repo}`  
-**Schema:** 1.0
+          avg_proficiency = sum(t["proficiency"] for t in scores["tools"].values()) // len(scores["tools"])
 
----
+          report = f"# Proficiency Report Card\n\n"
+          report += f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+          report += f"**Triggered by:** Push to `{triggered_repo}`\n"
+          report += f"**Schema:** 1.0\n\n"
+          report += f"---\n\n"
+          report += f"## Summary\n\n"
+          report += f"| Category | Count | Average |\n"
+          report += f"|----------|-------|----------|\n"
+          report += f"| Tools Analyzed | {len(scores['tools'])} | {avg_proficiency}% |\n\n"
+          report += f"---\n\n"
+          report += f"## By Proficiency Level\n\n"
+          report += f"### Strong (60%+)\n\n"
 
-## Summary
+          for tool in strong_tools:
+              data = scores["tools"][tool]
+              report += f"- **{tool}** ({data['proficiency']}%) — {data['status']}\n"
 
-| Category | Count | Average |
-|----------|-------|---------|
-| Tools Analyzed | {len(scores['tools'])} | {sum(t['proficiency'] for t in scores['tools'].values()) // len(scores['tools'])}% |
+          report += f"\n### Developing (40-60%)\n\n"
+          for tool in developing_tools:
+              data = scores["tools"][tool]
+              report += f"- **{tool}** ({data['proficiency']}%) — {data['status']}\n"
 
----
+          report += f"\n### Emerging (<40%)\n\n"
+          for tool in emerging_tools:
+              data = scores["tools"][tool]
+              report += f"- **{tool}** ({data['proficiency']}%) — {data['status']}\n"
 
-## By Proficiency Level
+          report += f"\n---\n\n"
+          report += f"## Detailed View\n\n"
 
-### Strong (60%+)
-"""
-          strong = {k: v for k, v in scores['tools'].items() if v['proficiency'] >= 60}
-          for tool, data in sorted(strong.items(), key=lambda x: x[1]['proficiency'], reverse=True):
-              report += f"\n- **{tool}** ({data['proficiency']}%) — {data['status']}\n"
+          for tool in sorted(scores["tools"].keys(), key=lambda x: scores["tools"][x]["proficiency"], reverse=True):
+              data = scores["tools"][tool]
+              report += f"### {tool}\n\n"
+              report += f"**Proficiency:** {data['proficiency']}%\n\n"
+              report += f"**Status:** {data['status']}\n\n"
+              report += f"**Confidence to Teach:** {data['confidence_to_teach']}\n\n"
 
-          report += "\n### Developing (40-60%)\n"
-          developing = {k: v for k, v in scores['tools'].items() if 40 <= v['proficiency'] < 60}
-          for tool, data in sorted(developing.items(), key=lambda x: x[1]['proficiency'], reverse=True):
-              report += f"\n- **{tool}** ({data['proficiency']}%) — {data['status']}\n"
-
-          report += "\n### Emerging (<40%)\n"
-          emerging = {k: v for k, v in scores['tools'].items() if v['proficiency'] < 40}
-          for tool, data in sorted(emerging.items(), key=lambda x: x[1]['proficiency'], reverse=True):
-              report += f"\n- **{tool}** ({data['proficiency']}%) — {data['status']}\n"
-
-          report += "\n---\n\n## Detailed View\n"
-          for tool, data in sorted(scores['tools'].items(), key=lambda x: x[1]['proficiency'], reverse=True):
-              report += f"\n### {tool}\n"
-              report += f"**Proficiency:** {data['proficiency']}%  \n"
-              report += f"**Status:** {data['status']}  \n"
-              report += f"**Confidence to Teach:** {data['confidence_to_teach']}  \n\n"
-              
-              if data['evidence']:
-                  report += "**Evidence:**\n"
-                  for ev in data['evidence']:
+              if data["evidence"]:
+                  report += f"**Evidence:**\n\n"
+                  for ev in data["evidence"]:
                       report += f"- {ev}\n"
-                  report += "\n"
-              
-              if data['still_developing']:
-                  report += "**Still Developing:**\n"
-                  for dev in data['still_developing']:
-                      report += f"- {dev}\n"
-                  report += "\n"
-              
-              if data['repos_involved']:
-                  report += f"**Repos:** `{', '.join(data['repos_involved'])}`\n"
-              report += "\n"
+                  report += f"\n"
 
-          report += "\n---\n\n## Notes\n\n"
-          report += "- This audit reflects honest assessment of shipped code, documented learning, and known gaps.\n"
-          report += "- Proficiency measures practical capability with AI assistance.\n"
-          report += "- Gaps are opportunities, not failures.\n"
-          report += "- Report auto-generates on each push to ParklandPackets-1 repos.\n"
+              if data["still_developing"]:
+                  report += f"**Still Developing:**\n\n"
+                  for dev in data["still_developing"]:
+                      report += f"- {dev}\n"
+                  report += f"\n"
+
+              if data["repos_involved"]:
+                  report += f"**Repos:** {', '.join(data['repos_involved'])}\n\n"
+
+          report += f"---\n\n"
+          report += f"## Notes\n\n"
+          report += f"- This audit reflects honest assessment of shipped code, documented learning, and known gaps.\n"
+          report += f"- Proficiency measures practical capability with AI assistance.\n"
+          report += f"- Gaps are opportunities, not failures.\n"
+          report += f"- Report auto-generates on each push to ParklandPackets-1 repos.\n"
 
           Path("PROFICIENCY_REPORT.md").write_text(report)
 
