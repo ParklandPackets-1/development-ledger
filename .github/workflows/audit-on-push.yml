@@ -1,0 +1,231 @@
+name: Proficiency Audit on Push
+
+on:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout development-ledger repo
+        uses: actions/checkout@v4
+        with:
+          repository: ParklandPackets-1/development-ledger
+          token: ${{ secrets.GITHUB_TOKEN }}
+          path: ./ledger
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Get triggered repo name
+        id: repo
+        run: echo "repo_name=$(echo ${{ github.repository }} | cut -d'/' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Run proficiency audit
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          cd ./ledger
+          python3 << 'PYTHON'
+          import json
+          import os
+          from datetime import datetime
+          from pathlib import Path
+
+          tool_knowledge = {
+              "JavaScript": {
+                  "repos": ["search-cognitive-firewall", "amazon-cognitive-firewall"],
+                  "base_proficiency": 58,
+                  "status": "Functional, pattern-matching",
+                  "confidence_to_teach": "Medium",
+                  "evidence": ["shipped userscripts", "cracked SERP structure", "context-aware logic"],
+                  "still_developing": ["complex DOM manipulation", "async/await patterns", "performance optimization"],
+              },
+              "Shell/Bash": {
+                  "repos": ["kali-linux-docker-apple-macos-silicon-utm-initialization-solution"],
+                  "base_proficiency": 52,
+                  "status": "Running commands fluently, building reusable scripts developing",
+                  "confidence_to_teach": "Medium",
+                  "evidence": ["setup/update scripts", "Docker integration", "chmod/path management"],
+                  "still_developing": ["error handling", "functions/modularity", "idempotent scripts"],
+              },
+              "Docker": {
+                  "repos": ["kali-linux-docker-apple-macos-silicon-utm-initialization-solution"],
+                  "base_proficiency": 61,
+                  "status": "Can operate confidently, not building custom images yet",
+                  "confidence_to_teach": "Medium",
+                  "evidence": ["resolved M3 compatibility", "ARM64 understanding", "capability flags"],
+                  "still_developing": ["custom Dockerfiles", "Docker Compose", "image optimization"],
+              },
+              "Markdown/Documentation": {
+                  "repos": ["development-ledger", "kali-linux-docker-apple-macos-silicon-utm-initialization-solution", "search-cognitive-firewall", "amazon-cognitive-firewall"],
+                  "base_proficiency": 71,
+                  "status": "Strong practitioner",
+                  "confidence_to_teach": "High",
+                  "evidence": ["clear READMEs", "honest disclosures", "hierarchical organization", "helpful structure"],
+                  "still_developing": ["technical diagrams", "cross-references", "doc automation"],
+              },
+              "Git/GitHub": {
+                  "repos": ["development-ledger", "search-cognitive-firewall", "amazon-cognitive-firewall", "kali-linux-docker-apple-macos-silicon-utm-initialization-solution"],
+                  "base_proficiency": 64,
+                  "status": "Operationally fluent with terminal workflow",
+                  "confidence_to_teach": "Medium-High",
+                  "evidence": ["multiple repos maintained", "PAT authentication", "meaningful commits", "learning documentation"],
+                  "still_developing": ["feature branches", "collaborative workflows", "merge conflict resolution"],
+              },
+              "HTML/CSS": {
+                  "repos": ["development-ledger"],
+                  "base_proficiency": 67,
+                  "status": "Can build functional interfaces, simple projects",
+                  "confidence_to_teach": "Medium-High",
+                  "evidence": ["meal planner PWA", "responsive design", "minimal CSS", "clean markup"],
+                  "still_developing": ["CSS architecture", "advanced layout", "animation/interaction"],
+              },
+              "Firebase/Real-time DB": {
+                  "repos": ["development-ledger"],
+                  "base_proficiency": 55,
+                  "status": "Basic CRUD and hosting, first project",
+                  "confidence_to_teach": "Medium",
+                  "evidence": ["deployed meal planner", "real-time sync", "offline capable", "CLI fluent"],
+                  "still_developing": ["authentication", "security rules", "data validation", "scaling"],
+              },
+              "Python": {
+                  "repos": [],
+                  "base_proficiency": 32,
+                  "status": "Environment ready, no production code yet",
+                  "confidence_to_teach": "Low",
+                  "evidence": ["Python 3.11 installed", "package management", "Textual framework installed"],
+                  "still_developing": ["everything"],
+              },
+              "Cybersecurity/Pentesting": {
+                  "repos": ["kali-linux-docker-apple-macos-silicon-utm-initialization-solution"],
+                  "base_proficiency": 38,
+                  "status": "Theory and environment, no hands-on practice yet",
+                  "confidence_to_teach": "Low",
+                  "evidence": ["Kali environment setup", "tool understanding", "responsible disclosure awareness"],
+                  "still_developing": ["running attacks", "defense architecture", "exploit chains"],
+              },
+              "Linux Fundamentals": {
+                  "repos": ["kali-linux-docker-apple-macos-silicon-utm-initialization-solution"],
+                  "base_proficiency": 28,
+                  "status": "Using Linux operationally, foundational book in progress",
+                  "confidence_to_teach": "Low",
+                  "evidence": ["terminal navigation", "file permissions", "path management"],
+                  "still_developing": ["everything foundational"],
+              },
+          }
+
+          audit_timestamp = datetime.now().isoformat()
+          triggered_repo = os.getenv("GITHUB_REPOSITORY", "").split("/")[-1]
+
+          scores = {
+              "audit_timestamp": audit_timestamp,
+              "triggered_by_repo": triggered_repo,
+              "schema_version": "1.0",
+              "tools": {}
+          }
+
+          for tool, data in tool_knowledge.items():
+              scores["tools"][tool] = {
+                  "proficiency": data["base_proficiency"],
+                  "status": data["status"],
+                  "confidence_to_teach": data["confidence_to_teach"],
+                  "evidence": data["evidence"],
+                  "still_developing": data["still_developing"],
+                  "repos_involved": data["repos"],
+                  "last_audited": audit_timestamp,
+              }
+
+          Path("proficiency-scores.json").write_text(json.dumps(scores, indent=2))
+
+          report = f"""# Proficiency Report Card
+
+**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  
+**Triggered by:** Push to `{triggered_repo}`  
+**Schema:** 1.0
+
+---
+
+## Summary
+
+| Category | Count | Average |
+|----------|-------|---------|
+| Tools Analyzed | {len(scores['tools'])} | {sum(t['proficiency'] for t in scores['tools'].values()) // len(scores['tools'])}% |
+
+---
+
+## By Proficiency Level
+
+### Strong (60%+)
+"""
+          strong = {k: v for k, v in scores['tools'].items() if v['proficiency'] >= 60}
+          for tool, data in sorted(strong.items(), key=lambda x: x[1]['proficiency'], reverse=True):
+              report += f"\n- **{tool}** ({data['proficiency']}%) — {data['status']}\n"
+
+          report += "\n### Developing (40-60%)\n"
+          developing = {k: v for k, v in scores['tools'].items() if 40 <= v['proficiency'] < 60}
+          for tool, data in sorted(developing.items(), key=lambda x: x[1]['proficiency'], reverse=True):
+              report += f"\n- **{tool}** ({data['proficiency']}%) — {data['status']}\n"
+
+          report += "\n### Emerging (<40%)\n"
+          emerging = {k: v for k, v in scores['tools'].items() if v['proficiency'] < 40}
+          for tool, data in sorted(emerging.items(), key=lambda x: x[1]['proficiency'], reverse=True):
+              report += f"\n- **{tool}** ({data['proficiency']}%) — {data['status']}\n"
+
+          report += "\n---\n\n## Detailed View\n"
+          for tool, data in sorted(scores['tools'].items(), key=lambda x: x[1]['proficiency'], reverse=True):
+              report += f"\n### {tool}\n"
+              report += f"**Proficiency:** {data['proficiency']}%  \n"
+              report += f"**Status:** {data['status']}  \n"
+              report += f"**Confidence to Teach:** {data['confidence_to_teach']}  \n\n"
+              
+              if data['evidence']:
+                  report += "**Evidence:**\n"
+                  for ev in data['evidence']:
+                      report += f"- {ev}\n"
+                  report += "\n"
+              
+              if data['still_developing']:
+                  report += "**Still Developing:**\n"
+                  for dev in data['still_developing']:
+                      report += f"- {dev}\n"
+                  report += "\n"
+              
+              if data['repos_involved']:
+                  report += f"**Repos:** `{', '.join(data['repos_involved'])}`\n"
+              report += "\n"
+
+          report += "\n---\n\n## Notes\n\n"
+          report += "- This audit reflects honest assessment of shipped code, documented learning, and known gaps.\n"
+          report += "- Proficiency measures practical capability with AI assistance.\n"
+          report += "- Gaps are opportunities, not failures.\n"
+          report += "- Report auto-generates on each push to ParklandPackets-1 repos.\n"
+
+          Path("PROFICIENCY_REPORT.md").write_text(report)
+
+          print("✅ Audit complete")
+          print(f"   - proficiency-scores.json: {len(scores['tools'])} tools analyzed")
+          print(f"   - PROFICIENCY_REPORT.md: Report card generated")
+
+          PYTHON
+
+      - name: Commit and push results
+        run: |
+          cd ./ledger
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          if git diff --quiet; then
+            echo "No changes to commit"
+          else
+            git add proficiency-scores.json PROFICIENCY_REPORT.md
+            git commit -m "chore: audit proficiency scores from push to ${{ steps.repo.outputs.repo_name }}"
+            git push
+          fi
