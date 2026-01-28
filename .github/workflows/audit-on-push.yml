@@ -216,9 +216,10 @@ jobs:
 
           PYTHON
 
-      - name: Commit and push results
+- name: Commit and push results
         run: |
           cd ./ledger
+          git pull origin main
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
           
